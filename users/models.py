@@ -30,8 +30,8 @@ class User(AbstractUser):
     ('Active','Active'),
     ('Inactive','Inactive'),
     ]
-     email = models.EmailField(unique=True)
-     profiles = models.CharField(
+     email = models.EmailField(unique=True,null=True,blank=True)
+     profiles = models.CharField(null=True,blank=True,
     max_length=20,
     choices=PROFILE_CHOICES,
     default='Standard'
@@ -43,7 +43,7 @@ class User(AbstractUser):
     null=True,
     blank=True
     )
-     nationality = models.CharField(max_length=100,blank=True)
+     nationality = models.CharField(max_length=100,blank=True,null=True)
      image = models.ImageField(
           upload_to='profile_images/',
           null=True,
@@ -55,16 +55,18 @@ class User(AbstractUser):
         null=True,
         blank=True
      )
-     phone = models.CharField(max_length=15, blank=True)
-     permanent_address = models.TextField(blank=True)
-     current_address = models.TextField(blank=True)
-     emergency_contact_name = models.CharField(max_length=100, blank=True)
-     emergency_contact_number = models.CharField(max_length=15,blank=True)
-     emergency_contact_relationship = models.CharField(max_length=50,blank=True)
+     phone = models.CharField(max_length=15, blank=True,null=True)
+     permanent_address = models.TextField(blank=True,null=True)
+     current_address = models.TextField(blank=True,null=True)
+     emergency_contact_name = models.CharField(max_length=100, blank=True,null=True)
+     emergency_contact_number = models.CharField(max_length=15,blank=True,null=True)
+     emergency_contact_relationship = models.CharField(max_length=50,blank=True,null=True)
      status = models.CharField(
           max_length=10,
           choices=STATUS_CHOICES,
-          default='Active'
+          default='Active',
+          null=True,
+          blank=True
      )
      def __str__(self):
          return self.username
@@ -83,6 +85,15 @@ class OTPVerification(models.Model):
         max_length=20,
         choices=PURPOSE_CHOICES,
         default='verification'
+    )
+    otp_request_count = models.PositiveSmallIntegerField(default=0)
+    otp_window_start = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+    otp_blocked_until = models.DateTimeField(
+        null=True,
+        blank=True
     )
 
     def __str__(self):

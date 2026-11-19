@@ -110,8 +110,14 @@ SQLite is used as the database.
 Developed as an internship assignment using Django REST Framework.
 ## Email Configuration
 
-For local development, the console email backend is used.
+This project uses SMTP email configuration for sending welcome emails and OTP verification codes.
 
-Emails such as welcome emails and OTP emails are displayed in the terminal instead of being sent to an actual email inbox.
+Email credentials and Django SECRET_KEY are stored in a `.env` file.
 
-For real email delivery, configure an SMTP email backend in Django settings.
+Create a `.env` file in the project root and configure:
+
+- SECRET_KEY
+- EMAIL_HOST_USER
+- EMAIL_HOST_PASSWORD
+
+Never upload the `.env` file to GitHub.

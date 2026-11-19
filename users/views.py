@@ -19,7 +19,7 @@ class UserListCreateAPIView(generics.ListCreateAPIView):
 
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     def perform_create(self, serializer):
      user = serializer.save()
 
@@ -36,7 +36,7 @@ class UserDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
-    def destroy(self,request,*args,**kwargs): 
+    def destroy(self,request,*args,**kwargs):
         user = self.get_object()
         user.status = 'Inactive'
         user.save(update_fields=['status'])
@@ -44,6 +44,7 @@ class UserDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
             {'message':'User deactivated successfully.'},
             status= status.HTTP_200_OK
         )
+
 class SendOTPAPIView(APIView):
 
     permission_classes = [AllowAny]
@@ -60,15 +61,64 @@ class SendOTPAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        now = timezone.now()
+
+        request_count = 0
+        window_start = now
+
+        otp_record = OTPVerification.objects.filter(
+        user=user
+        ).first()
+
+
+        if otp_record and otp_record.otp_blocked_until:
+           if now < otp_record.otp_blocked_until:
+              return Response(
+            {
+                'error': 'You have exceeded the maximum number of OTP requests. Please try again after 12 hours.'
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+        else:
+             otp_record.otp_blocked_until = None
+             otp_record.otp_request_count = 0
+             otp_record.otp_window_start = now
+             otp_record.save()
+
+        if otp_record:
+            request_count = otp_record.otp_request_count
+            window_start = otp_record.otp_window_start or now
+
+
+        if window_start is None or now - window_start >= timedelta(hours=12):
+            request_count = 0
+            window_start = now
+
+
+        if request_count >= 3:
+
+            otp_record.otp_blocked_until = now + timedelta(hours=12)
+            otp_record.save()
+
+            return Response(
+                {
+                    'error': 'You have exceeded the maximum number of OTP requests. Please try again after 12 hours.'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         otp = str(random.randint(100000, 999999))
 
         OTPVerification.objects.update_or_create(
             user=user,
             defaults={
                 'otp': otp,
-                'created_at': timezone.now(),
+                'created_at': now,
                 'is_verified': False,
-                'purpose':'verification'
+                'purpose': 'verification',
+                'otp_request_count': request_count + 1,
+                'otp_window_start': window_start,
+                'otp_blocked_until': None
             }
         )
 
@@ -83,11 +133,13 @@ class SendOTPAPIView(APIView):
             'message': 'OTP sent successfully.'
         })
 
+
 class VerifyOTPAPIView(APIView):
 
     permission_classes = [AllowAny]
 
     def post(self, request):
+
 
         email = request.data.get('email')
         otp = request.data.get('otp')
@@ -132,7 +184,7 @@ class VerifyOTPAPIView(APIView):
         return Response({
             'message': 'OTP verified successfully.'
         })
-    
+
 
 class ForgotPasswordAPIView(APIView):
 
@@ -171,7 +223,7 @@ class ForgotPasswordAPIView(APIView):
 
         return Response({
             'message': 'Password reset OTP sent successfully.'
-        })    
+        })
 class ResetPasswordAPIView(APIView):
 
     permission_classes = [AllowAny]
@@ -260,5 +312,4 @@ class LoginAPIView(APIView):
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
         )
-       
-    
+
